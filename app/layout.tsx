@@ -51,6 +51,12 @@ export default function RootLayout({
                 Dashboard
               </a>
               <a
+                href="/claude"
+                className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors font-semibold"
+              >
+                Claude Agent
+              </a>
+              <a
                 href="/autonomous"
                 className="text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors font-semibold"
               >

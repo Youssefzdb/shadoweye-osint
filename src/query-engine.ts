@@ -15,6 +15,7 @@ import type { ToolRegistry } from './tools';
 import type { CommandRegistry } from './commands';
 import { CloudGeminiSystem } from './cloud-gemini';
 import { AutonomousAgent } from './autonomous-agent';
+import { ClaudeAgent } from './claude-agent';
 
 class QueryEngine {
   private modelRegistry: ModelRegistry;
@@ -24,6 +25,7 @@ class QueryEngine {
   private maxHistoryLength: number = 50;
   private cloudGemini: CloudGeminiSystem;
   private autonomousAgent: AutonomousAgent;
+  private claudeAgent: ClaudeAgent;
 
   constructor(
     modelRegistry: ModelRegistry,
@@ -41,6 +43,12 @@ class QueryEngine {
     );
     // Initialize Autonomous Agent for true agentic behavior
     this.autonomousAgent = new AutonomousAgent(
+      modelRegistry,
+      toolRegistry,
+      commandRegistry
+    );
+    // Initialize Claude Agent for Claude-like behavior
+    this.claudeAgent = new ClaudeAgent(
       modelRegistry,
       toolRegistry,
       commandRegistry
@@ -237,6 +245,13 @@ class QueryEngine {
    */
   getModels() {
     return this.cloudGemini.getModels();
+  }
+
+  /**
+   * Get Claude Agent for Claude-like behavior
+   */
+  getClaudeAgent() {
+    return this.claudeAgent;
   }
 }
 
