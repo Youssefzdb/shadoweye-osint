@@ -1,10 +1,8 @@
 /**
- * Gemini Service - Direct API Integration
+ * Gemini Service - Direct API Integration (Unofficial)
  * No token, no API key, completely free and unlimited
+ * Based on reverse-engineered Bard/Gemini web interface
  */
-
-import * as crypto from 'crypto';
-import * as querystring from 'querystring';
 
 interface GeminiResponse {
   success: boolean;
@@ -56,18 +54,17 @@ class GeminiService {
 
     const outer = [null, JSON.stringify(inner)];
 
-    const params = querystring.stringify({
-      'f.req': JSON.stringify(outer),
-    });
+    const params = new URLSearchParams();
+    params.append('f.req', JSON.stringify(outer));
 
-    return params + '&';
+    return params.toString() + '&';
   }
 
   /**
    * Parse Gemini response stream
    */
   private parseResponse(text: string): string {
-    text = text.replace(/\)\]'/, '');
+    text = text.replace(/\)\]}'/, '');
     let best = '';
 
     for (const line of text.split('\n')) {
@@ -84,8 +81,7 @@ class GeminiService {
             entries.push(data);
           } else {
             const filtered = data.filter(
-              (i: any) =>
-                Array.isArray(i) && i[0] === 'wrb.fr'
+              (i: any) => Array.isArray(i) && i[0] === 'wrb.fr'
             );
             entries.push(...filtered);
           }
@@ -95,10 +91,7 @@ class GeminiService {
           try {
             const inner = JSON.parse(entry[2]);
 
-            if (
-              Array.isArray(inner) &&
-              Array.isArray(inner[4])
-            ) {
+            if (Array.isArray(inner) && Array.isArray(inner[4])) {
               for (const c of inner[4]) {
                 if (Array.isArray(c) && Array.isArray(c[1])) {
                   const txt = c[1]
@@ -133,7 +126,7 @@ class GeminiService {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        const timeout = setTimeout(() => controller.abort(), 30000);
 
         const response = await fetch(this.baseUrl, {
           method: 'POST',
@@ -141,8 +134,7 @@ class GeminiService {
             'accept': '*/*',
             'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
             'x-same-domain': '1',
-            'user-agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
           body: payload,
           signal: controller.signal as AbortSignal,
@@ -158,11 +150,8 @@ class GeminiService {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
-        // Wait before retry
         if (attempt < maxRetries - 1) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * (attempt + 1))
-          );
+          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
         }
       }
     }
@@ -173,8 +162,13 @@ class GeminiService {
   /**
    * Ask Gemini a question
    */
-  async ask(prompt: string): Promise<GeminiResponse> {
+  async ask(prompt: string, systemPrompt?: string): Promise<GeminiResponse> {
     try {
+      // Add system prompt if provided
+      const fullPrompt = systemPrompt 
+        ? `${systemPrompt}\n\nUser: ${prompt}` 
+        : prompt;
+
       // Add to history
       this.conversationHistory.history.push({
         role: 'user',
@@ -182,7 +176,7 @@ class GeminiService {
       });
 
       // Build and send request
-      const payload = this.buildPayload(prompt);
+      const payload = this.buildPayload(fullPrompt);
       const responseText = await this.sendRequest(payload);
       const text = this.parseResponse(responseText);
 
@@ -202,8 +196,7 @@ class GeminiService {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
       return {
         success: false,
@@ -215,7 +208,22 @@ class GeminiService {
   }
 
   /**
-   * Get conversation context with optional summary
+   * Ask with streaming support (simulated - returns full response)
+   */
+  async askStream(
+    prompt: string,
+    onChunk: (chunk: string) => void,
+    systemPrompt?: string
+  ): Promise<GeminiResponse> {
+    const response = await this.ask(prompt, systemPrompt);
+    if (response.success) {
+      onChunk(response.text);
+    }
+    return response;
+  }
+
+  /**
+   * Get conversation context
    */
   getContext(): ConversationContext {
     return {
