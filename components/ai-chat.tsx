@@ -44,12 +44,13 @@ export function AIChat({ initialMessages = [], onMessageSent }: AIChatProps) {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/source-map/query', {
+      // Use CloudGemini API for full Cloud power
+      const response = await fetch('/api/cloud-gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          input: userMessage.content,
-          modelId: 'gemini-pro',
+          message: userMessage.content,
+          includeStatus: false,
         }),
       });
 
@@ -57,7 +58,7 @@ export function AIChat({ initialMessages = [], onMessageSent }: AIChatProps) {
 
       const assistantMessage: Message = {
         role: 'assistant',
-        content: result.output || 'No response received',
+        content: result.message || 'No response received',
         timestamp: new Date(),
         metadata: {
           confidence: result.confidence,

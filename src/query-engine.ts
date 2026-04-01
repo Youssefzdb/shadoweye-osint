@@ -13,7 +13,7 @@ import type {
 import type { ModelRegistry } from './models';
 import type { ToolRegistry } from './tools';
 import type { CommandRegistry } from './commands';
-import { geminiService } from './gemini';
+import { CloudGeminiSystem } from './cloud-gemini';
 
 class QueryEngine {
   private modelRegistry: ModelRegistry;
@@ -21,6 +21,7 @@ class QueryEngine {
   private commandRegistry: CommandRegistry;
   private conversationHistory: Message[] = [];
   private maxHistoryLength: number = 50;
+  private cloudGemini: CloudGeminiSystem;
 
   constructor(
     modelRegistry: ModelRegistry,
@@ -30,6 +31,12 @@ class QueryEngine {
     this.modelRegistry = modelRegistry;
     this.toolRegistry = toolRegistry;
     this.commandRegistry = commandRegistry;
+    // Initialize CloudGemini with full Cloud power
+    this.cloudGemini = new CloudGeminiSystem(
+      modelRegistry,
+      toolRegistry,
+      commandRegistry
+    );
   }
 
   /**
@@ -105,24 +112,17 @@ class QueryEngine {
       return this.commandRegistry.execute(command.id, input);
     }
 
-    // Use Gemini for advanced processing
+    // Use CloudGemini with full Cloud power
     try {
-      // Set conversation history for context
-      const recentHistory = this.getRecentHistory(5);
-      if (recentHistory.length > 0) {
-        geminiService.setHistory(recentHistory);
-      }
-
-      // Send message to Gemini
-      const result = await geminiService.ask(input);
+      const result = await this.cloudGemini.query(input);
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to get response from Gemini');
+        throw new Error(result.error || 'Failed to process with CloudGemini');
       }
 
-      return result.text;
+      return result.message;
     } catch (error) {
-      console.error('[Query Engine] Gemini error:', error);
+      console.error('[Query Engine] CloudGemini error:', error);
       return `Error connecting to AI: ${String(error)}`;
     }
   }
@@ -201,6 +201,34 @@ class QueryEngine {
         timestamp: new Date().toISOString(),
       },
     };
+  }
+
+  /**
+   * Get CloudGemini system status
+   */
+  getCloudGeminiStatus() {
+    return this.cloudGemini.getStatus();
+  }
+
+  /**
+   * Get all available tools
+   */
+  getTools() {
+    return this.cloudGemini.getTools();
+  }
+
+  /**
+   * Get all available commands
+   */
+  getCommands() {
+    return this.cloudGemini.getCommands();
+  }
+
+  /**
+   * Get all available models
+   */
+  getModels() {
+    return this.cloudGemini.getModels();
   }
 }
 

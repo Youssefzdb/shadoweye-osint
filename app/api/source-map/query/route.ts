@@ -32,16 +32,19 @@ export async function POST(request: Request) {
   }
 }
 
-// GET endpoint to check health
+// GET endpoint to check health and CloudGemini status
 export async function GET() {
   try {
     const sourceMap = engine.getSourceMap();
+    const cloudGeminiStatus = engine.getCloudGeminiStatus();
+    
     return Response.json({
       status: 'ok',
       version: sourceMap.version,
       modelsCount: sourceMap.models.size,
       toolsCount: sourceMap.tools.size,
       commandsCount: sourceMap.commands.size,
+      cloudGemini: cloudGeminiStatus,
     });
   } catch (error) {
     return Response.json(

@@ -51,10 +51,16 @@ export default function RootLayout({
                 Dashboard
               </a>
               <a
+                href="/cloud-gemini"
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors font-semibold"
+              >
+                CloudGemini
+              </a>
+              <a
                 href="/chat"
                 className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
               >
-                Gemini Chat
+                Chat
               </a>
               <a
                 href="/details"
