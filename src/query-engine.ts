@@ -14,6 +14,7 @@ import type { ModelRegistry } from './models';
 import type { ToolRegistry } from './tools';
 import type { CommandRegistry } from './commands';
 import { CloudGeminiSystem } from './cloud-gemini';
+import { AutonomousAgent } from './autonomous-agent';
 
 class QueryEngine {
   private modelRegistry: ModelRegistry;
@@ -22,6 +23,7 @@ class QueryEngine {
   private conversationHistory: Message[] = [];
   private maxHistoryLength: number = 50;
   private cloudGemini: CloudGeminiSystem;
+  private autonomousAgent: AutonomousAgent;
 
   constructor(
     modelRegistry: ModelRegistry,
@@ -33,6 +35,12 @@ class QueryEngine {
     this.commandRegistry = commandRegistry;
     // Initialize CloudGemini with full Cloud power
     this.cloudGemini = new CloudGeminiSystem(
+      modelRegistry,
+      toolRegistry,
+      commandRegistry
+    );
+    // Initialize Autonomous Agent for true agentic behavior
+    this.autonomousAgent = new AutonomousAgent(
       modelRegistry,
       toolRegistry,
       commandRegistry

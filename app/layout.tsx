@@ -51,6 +51,12 @@ export default function RootLayout({
                 Dashboard
               </a>
               <a
+                href="/autonomous"
+                className="text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors font-semibold"
+              >
+                Autonomous
+              </a>
+              <a
                 href="/cloud-gemini"
                 className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors font-semibold"
               >
