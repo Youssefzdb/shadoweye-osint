@@ -104,8 +104,35 @@ class QueryEngine {
       return this.commandRegistry.execute(command.id, input);
     }
 
-    // Default: return input processing message
-    return `Processing: ${input}`;
+    // Use Gemini for advanced processing
+    try {
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: input,
+          context: this.getRecentHistory(5).map((msg) => ({
+            role: msg.role,
+            content: msg.content,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.message) {
+        return result.message;
+      }
+
+      throw new Error(result.error || 'Unknown error');
+    } catch (error) {
+      console.error('[Query Engine] Gemini error:', error);
+      return `Error connecting to AI: ${String(error)}`;
+    }
   }
 
   /**

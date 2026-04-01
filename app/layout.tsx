@@ -51,6 +51,12 @@ export default function RootLayout({
                 Dashboard
               </a>
               <a
+                href="/chat"
+                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Gemini Chat
+              </a>
+              <a
                 href="/details"
                 className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
               >
