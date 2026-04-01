@@ -1,5 +1,5 @@
 'use client';
-
+// Force rebuild - cache cleared
 import { useState, useEffect } from 'react';
 import { SourceMapDashboard } from '@/components/source-map-dashboard';
 import { QueryInput } from '@/components/query-input';
