@@ -13,6 +13,7 @@ import type {
 import type { ModelRegistry } from './models';
 import type { ToolRegistry } from './tools';
 import type { CommandRegistry } from './commands';
+import { geminiService } from './gemini';
 
 class QueryEngine {
   private modelRegistry: ModelRegistry;
@@ -106,29 +107,20 @@ class QueryEngine {
 
     // Use Gemini for advanced processing
     try {
-      const response = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: input,
-          context: this.getRecentHistory(5).map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-          })),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      // Set conversation history for context
+      const recentHistory = this.getRecentHistory(5);
+      if (recentHistory.length > 0) {
+        geminiService.setHistory(recentHistory);
       }
 
-      const result = await response.json();
+      // Send message to Gemini
+      const result = await geminiService.ask(input);
 
-      if (result.success && result.message) {
-        return result.message;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to get response from Gemini');
       }
 
-      throw new Error(result.error || 'Unknown error');
+      return result.text;
     } catch (error) {
       console.error('[Query Engine] Gemini error:', error);
       return `Error connecting to AI: ${String(error)}`;
