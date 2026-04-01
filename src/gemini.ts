@@ -27,11 +27,50 @@ const gateway = createOpenAI({
   apiKey: 'dummy', // AI Gateway handles auth
 });
 
+// List of models to try in order (fallback chain)
+const GEMINI_MODELS = [
+  'google/gemini-2.0-flash-001',
+  'google/gemini-1.5-flash',
+  'google/gemini-pro',
+] as const;
+
 class GeminiService {
   private conversationHistory: ConversationContext = {
     history: [],
     conversationId: undefined,
   };
+
+  /**
+   * Try to generate text with model fallback
+   */
+  private async tryGenerateText(
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    systemPrompt: string
+  ): Promise<string> {
+    let lastError: Error | null = null;
+
+    for (const modelId of GEMINI_MODELS) {
+      try {
+        console.log(`[v0] [GeminiService] Trying model: ${modelId}`);
+        const result = await generateText({
+          model: gateway(modelId),
+          system: systemPrompt,
+          messages,
+        });
+
+        if (result.text) {
+          console.log(`[v0] [GeminiService] Success with model: ${modelId}`);
+          return result.text;
+        }
+      } catch (error) {
+        console.log(`[v0] [GeminiService] Model ${modelId} failed:`, error);
+        lastError = error instanceof Error ? error : new Error(String(error));
+        // Continue to next model
+      }
+    }
+
+    throw lastError || new Error('All Gemini models failed');
+  }
 
   /**
    * Ask Gemini a question using AI SDK
@@ -50,18 +89,11 @@ class GeminiService {
         content: msg.content,
       }));
 
-      // Use Vercel AI Gateway with Gemini
-      const result = await generateText({
-        model: gateway('google/gemini-2.0-flash-001'),
-        system: systemPrompt || 'You are a helpful AI assistant. Be concise and accurate.',
+      // Use Vercel AI Gateway with Gemini (with fallback)
+      const text = await this.tryGenerateText(
         messages,
-      });
-
-      const text = result.text;
-
-      if (!text) {
-        throw new Error('Empty response from Gemini');
-      }
+        systemPrompt || 'You are a helpful AI assistant. Be concise and accurate.'
+      );
 
       // Add response to history
       this.conversationHistory.history.push({
@@ -106,13 +138,12 @@ class GeminiService {
         content: msg.content,
       }));
 
-      const result = await generateText({
-        model: gateway('google/gemini-2.0-flash-001'),
-        system: systemPrompt || 'You are a helpful AI assistant. Be concise and accurate.',
+      // Use fallback chain
+      const text = await this.tryGenerateText(
         messages,
-      });
-
-      const text = result.text;
+        systemPrompt || 'You are a helpful AI assistant. Be concise and accurate.'
+      );
+      
       onChunk(text);
 
       this.conversationHistory.history.push({
