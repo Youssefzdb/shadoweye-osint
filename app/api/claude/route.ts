@@ -1,23 +1,34 @@
 /**
  * Claude Agent API Route
- * True Claude-like behavior endpoint
+ * True Claude-like behavior endpoint powered by LiteLLM Proxy
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getQueryEngine } from '@/src/index';
+import { LiteLLMProxy } from '@/src/litellm-proxy';
 
 export const runtime = 'nodejs';
+
+// LiteLLM Proxy instance for Claude-compatible processing
+const litellmProxy = new LiteLLMProxy({
+  enableDefaultTools: true,
+  config: {
+    debug: process.env.NODE_ENV === 'development',
+    enableToolExecution: true,
+  },
+});
 
 interface ClaudeRequest {
   message: string;
   includeThinking?: boolean;
   includeMetrics?: boolean;
+  useLiteLLM?: boolean; // Option to use LiteLLM proxy directly
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: ClaudeRequest = await request.json();
-    const { message, includeThinking = true, includeMetrics = true } = body;
+    const { message, includeThinking = true, includeMetrics = true, useLiteLLM = false } = body;
 
     if (!message || message.trim().length === 0) {
       return NextResponse.json(
@@ -26,15 +37,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If useLiteLLM is true, use the LiteLLM proxy directly
+    if (useLiteLLM) {
+      const startTime = Date.now();
+      const response = await litellmProxy.chat(message, {
+        system: 'You are Claude, an AI assistant. Be helpful, harmless, and honest.',
+        tools: true,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: response,
+        metrics: {
+          executionTime: Date.now() - startTime,
+          backend: 'litellm-proxy',
+          model: 'gemini-pro',
+        },
+      });
+    }
+
     // Get Claude Agent from query engine
     const engine = getQueryEngine();
     const claudeAgent = engine.getClaudeAgent?.();
 
     if (!claudeAgent) {
-      return NextResponse.json(
-        { error: 'Claude Agent not available' },
-        { status: 503 }
-      );
+      // Fallback to LiteLLM proxy if Claude Agent not available
+      const startTime = Date.now();
+      const response = await litellmProxy.chat(message, {
+        system: 'You are Claude, an AI assistant. Be helpful, harmless, and honest.',
+        tools: true,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: response,
+        metrics: {
+          executionTime: Date.now() - startTime,
+          backend: 'litellm-proxy-fallback',
+          model: 'gemini-pro',
+        },
+      });
     }
 
     // Execute with Claude-like behavior

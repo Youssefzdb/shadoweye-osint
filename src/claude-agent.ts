@@ -1,9 +1,11 @@
 /**
  * Claude Agent - True Claude-like behavior with ReAct pattern
- * Implements Reasoning + Acting for intelligent problem solving
+ * Now powered by LiteLLM Proxy for full Claude tool compatibility
  */
 
 import { geminiService, type GeminiResponse } from './gemini';
+import { LiteLLMProxy, type UnifiedTool, type ClaudeResponse } from './litellm-proxy';
+import { allTools, defaultTools } from './litellm-proxy/tools';
 import type { ModelRegistry } from './models';
 import type { ToolRegistry } from './tools';
 import type { CommandRegistry } from './commands';
@@ -35,6 +37,7 @@ interface ClaudeAgentResponse {
     autonomyLevel: 'full' | 'semi' | 'manual';
     selfCorrected: boolean;
     iterationCount: number;
+    backend: 'litellm-proxy' | 'gemini-direct';
   };
 }
 
@@ -44,24 +47,177 @@ export class ClaudeAgent {
   private commandRegistry: CommandRegistry;
   private conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
   private systemPrompt: string;
+  private litellmProxy: LiteLLMProxy;
+  private useLiteLLMProxy: boolean = true;
 
   constructor(
     models: ModelRegistry,
     tools: ToolRegistry,
-    commands: CommandRegistry
+    commands: CommandRegistry,
+    options: { useLiteLLMProxy?: boolean } = {}
   ) {
     this.modelRegistry = models;
     this.toolRegistry = tools;
     this.commandRegistry = commands;
     this.systemPrompt = CLAUDE_SYSTEM_PROMPT + '\n\n' + REACT_PROMPT;
+    this.useLiteLLMProxy = options.useLiteLLMProxy !== false;
+
+    // Initialize LiteLLM Proxy with all Claude tools
+    this.litellmProxy = new LiteLLMProxy({
+      enableDefaultTools: true,
+      config: {
+        debug: process.env.NODE_ENV === 'development',
+        enableToolExecution: true,
+        enableStreaming: true,
+      },
+    });
+
+    // Register additional tools from the existing tool registry
+    this.registerExistingTools();
   }
 
   /**
-   * Main method: Think, Act, Observe, Iterate
-   * Returns Claude-style response with reasoning
+   * Register existing tools from ToolRegistry to LiteLLM Proxy
+   */
+  private registerExistingTools(): void {
+    const existingTools = this.toolRegistry.getAll();
+
+    for (const tool of existingTools) {
+      // Convert to UnifiedTool format
+      const unifiedTool: UnifiedTool = {
+        name: tool.name,
+        description: tool.description,
+        parameters: {
+          type: 'object',
+          properties: tool.parameters || {},
+          required: Object.keys(tool.parameters || {}),
+        },
+        handler: tool.handler,
+      };
+
+      this.litellmProxy.registerTool(unifiedTool);
+    }
+  }
+
+  /**
+   * Main method: Execute using LiteLLM Proxy or fallback to direct Gemini
    */
   async execute(userRequest: string): Promise<ClaudeAgentResponse> {
     const startTime = Date.now();
+
+    if (this.useLiteLLMProxy) {
+      return this.executeWithLiteLLM(userRequest, startTime);
+    }
+
+    return this.executeDirectGemini(userRequest, startTime);
+  }
+
+  /**
+   * Execute using LiteLLM Proxy (Claude-compatible)
+   */
+  private async executeWithLiteLLM(userRequest: string, startTime: number): Promise<ClaudeAgentResponse> {
+    const thinking: ThinkingProcess = {
+      initialAnalysis: '',
+      steps: [],
+      finalReasoning: '',
+      conclusion: '',
+    };
+
+    try {
+      // Add to conversation history
+      this.conversationHistory.push({
+        role: 'user',
+        content: userRequest,
+      });
+
+      // Step 1: Initial analysis
+      thinking.initialAnalysis = `Processing request through LiteLLM Proxy with Claude-compatible tools`;
+      thinking.steps.push({
+        type: 'thought',
+        content: thinking.initialAnalysis,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Step 2: Execute through LiteLLM Proxy
+      const response = await this.litellmProxy.processRequest({
+        model: 'claude-3-opus-20240229',
+        max_tokens: 4096,
+        system: this.systemPrompt,
+        messages: this.conversationHistory.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+      });
+
+      // Extract tool usage from response
+      const toolsUsed: string[] = [];
+      let finalMessage = '';
+
+      for (const block of response.content) {
+        if (block.type === 'text' && block.text) {
+          finalMessage += block.text;
+        }
+        if (block.type === 'tool_use' && block.name) {
+          toolsUsed.push(block.name);
+          thinking.steps.push({
+            type: 'action',
+            content: `Used tool: ${block.name}`,
+            timestamp: new Date().toISOString(),
+            toolUsed: block.name,
+            success: true,
+          });
+        }
+      }
+
+      // Step 3: Record observation
+      thinking.steps.push({
+        type: 'observation',
+        content: `Received response with ${response.content.length} content blocks`,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Step 4: Final answer
+      thinking.conclusion = finalMessage;
+      thinking.steps.push({
+        type: 'final_answer',
+        content: finalMessage,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Add to conversation history
+      this.conversationHistory.push({
+        role: 'assistant',
+        content: finalMessage,
+      });
+
+      const executionTime = Date.now() - startTime;
+
+      return {
+        success: true,
+        message: finalMessage,
+        thinking,
+        toolsUsed,
+        executionTime,
+        metadata: {
+          model: 'gemini-pro',
+          autonomyLevel: 'full',
+          selfCorrected: toolsUsed.length > 0,
+          iterationCount: thinking.steps.filter((s) => s.type === 'action').length + 1,
+          backend: 'litellm-proxy',
+        },
+      };
+    } catch (error) {
+      console.error('[Claude Agent] LiteLLM Error:', error);
+
+      // Fallback to direct Gemini
+      return this.executeDirectGemini(userRequest, startTime);
+    }
+  }
+
+  /**
+   * Execute using direct Gemini (fallback)
+   */
+  private async executeDirectGemini(userRequest: string, startTime: number): Promise<ClaudeAgentResponse> {
     const thinking: ThinkingProcess = {
       initialAnalysis: '',
       steps: [],
@@ -157,6 +313,7 @@ export class ClaudeAgent {
           autonomyLevel: 'full',
           selfCorrected,
           iterationCount,
+          backend: 'gemini-direct',
         },
       };
     } catch (error) {
@@ -173,6 +330,7 @@ export class ClaudeAgent {
           autonomyLevel: 'full',
           selfCorrected,
           iterationCount,
+          backend: 'gemini-direct',
         },
       };
     }
@@ -199,7 +357,11 @@ Be concise but thorough.`;
     request: string,
     analysis: string
   ): Promise<{ tools: string[]; commands: string[] }> {
-    const availableTools = this.toolRegistry.getAll().map((t) => t.id);
+    // Include LiteLLM proxy tools
+    const availableTools = [
+      ...this.toolRegistry.getAll().map((t) => t.name),
+      ...this.litellmProxy.getTools().map((t) => t.name),
+    ];
     const availableCommands = this.commandRegistry.getAll().map((c) => c.id);
 
     const prompt = `Given this request: "${request}"
@@ -216,11 +378,15 @@ Return as JSON: { "tools": [...], "commands": [...] }`;
 
     try {
       if (response.success) {
-        const parsed = JSON.parse(response.text);
-        return {
-          tools: Array.isArray(parsed.tools) ? parsed.tools : [],
-          commands: Array.isArray(parsed.commands) ? parsed.commands : [],
-        };
+        // Try to extract JSON from response
+        const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return {
+            tools: Array.isArray(parsed.tools) ? parsed.tools : [],
+            commands: Array.isArray(parsed.commands) ? parsed.commands : [],
+          };
+        }
       }
     } catch (e) {
       console.error('[Claude Agent] Parse error:', e);
@@ -239,13 +405,13 @@ Return as JSON: { "tools": [...], "commands": [...] }`;
     const results: string[] = [];
     const executed: string[] = [];
 
-    // Execute tools
+    // Execute tools from ToolRegistry
     for (const toolId of tools) {
-      const tool = this.toolRegistry.getAll().find((t) => t.id === toolId);
+      const tool = this.toolRegistry.getAll().find((t) => t.name === toolId);
       if (tool) {
         try {
-          const result = await tool.execute({});
-          results.push(`[${toolId}] ${result}`);
+          const result = await tool.handler({});
+          results.push(`[${toolId}] ${JSON.stringify(result)}`);
           executed.push(toolId);
         } catch (error) {
           results.push(`[${toolId}] Error: ${String(error)}`);
@@ -258,7 +424,7 @@ Return as JSON: { "tools": [...], "commands": [...] }`;
       const cmd = this.commandRegistry.getAll().find((c) => c.id === cmdId);
       if (cmd) {
         try {
-          const result = await cmd.execute({});
+          const result = await cmd.handler('');
           results.push(`[${cmdId}] ${result}`);
           executed.push(cmdId);
         } catch (error) {
@@ -294,13 +460,12 @@ Are there any issues or gaps?`;
    * Check if we need to iterate and fix issues
    */
   private async needsIteration(observation: string, results: string): Promise<boolean> {
-    // Simple heuristic: if observation mentions issues/gaps, iterate
     const hasIssues = observation.toLowerCase().includes('issue')
       || observation.toLowerCase().includes('error')
       || observation.toLowerCase().includes('gap')
       || observation.toLowerCase().includes('incomplete');
 
-    return hasIssues && results.length < 100; // Simple threshold
+    return hasIssues && results.length < 100;
   }
 
   /**
@@ -334,7 +499,7 @@ Provide a detailed correction or improvement.`;
     thinking: ThinkingProcess
   ): Promise<string> {
     const conversationContext = this.conversationHistory
-      .slice(-4) // Last 4 messages for context
+      .slice(-4)
       .map((msg) => `${msg.role}: ${msg.content}`)
       .join('\n');
 
@@ -362,6 +527,13 @@ Provide a comprehensive, helpful Claude-style response that:
   }
 
   /**
+   * Get LiteLLM Proxy instance for direct access
+   */
+  getLiteLLMProxy(): LiteLLMProxy {
+    return this.litellmProxy;
+  }
+
+  /**
    * Get conversation history
    */
   getHistory(): typeof this.conversationHistory {
@@ -373,5 +545,22 @@ Provide a comprehensive, helpful Claude-style response that:
    */
   clearHistory(): void {
     this.conversationHistory = [];
+  }
+
+  /**
+   * Set whether to use LiteLLM Proxy
+   */
+  setUseLiteLLMProxy(use: boolean): void {
+    this.useLiteLLMProxy = use;
+  }
+
+  /**
+   * Get available tools
+   */
+  getAvailableTools(): string[] {
+    return [
+      ...this.toolRegistry.getAll().map((t) => t.name),
+      ...this.litellmProxy.getTools().map((t) => t.name),
+    ];
   }
 }
