@@ -1,10 +1,10 @@
 /**
- * Gemini Service - AI SDK Integration
- * Uses Vercel AI Gateway for reliable Gemini access
+ * Gemini Service - Direct API Integration
+ * No token, no API key, completely free and unlimited
  */
 
-import { generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+import * as crypto from 'crypto';
+import * as querystring from 'querystring';
 
 interface GeminiResponse {
   success: boolean;
@@ -21,61 +21,159 @@ interface ConversationContext {
   conversationId?: string;
 }
 
-// Vercel AI Gateway provider (zero config, works in v0)
-const gateway = createOpenAI({
-  baseURL: 'https://api.vercel.ai/v1',
-  apiKey: 'dummy', // AI Gateway handles auth
-});
-
-// List of models to try in order (fallback chain)
-const GEMINI_MODELS = [
-  'google/gemini-2.0-flash-001',
-  'google/gemini-1.5-flash',
-  'google/gemini-pro',
-] as const;
-
 class GeminiService {
+  private baseUrl = 'https://gemini.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate';
   private conversationHistory: ConversationContext = {
     history: [],
     conversationId: undefined,
   };
 
   /**
-   * Try to generate text with model fallback
+   * Build request payload for Gemini API
    */
-  private async tryGenerateText(
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-    systemPrompt: string
-  ): Promise<string> {
-    let lastError: Error | null = null;
+  private buildPayload(prompt: string): string {
+    const inner = [
+      [prompt, 0, null, null, null, null, 0],
+      ['en-US'],
+      ['', '', '', null, null, null, null, null, null, ''],
+      '',
+      '',
+      null,
+      [0],
+      1,
+      null,
+      null,
+      1,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      [[0]],
+      0,
+    ];
 
-    for (const modelId of GEMINI_MODELS) {
-      try {
-        console.log(`[v0] [GeminiService] Trying model: ${modelId}`);
-        const result = await generateText({
-          model: gateway(modelId),
-          system: systemPrompt,
-          messages,
-        });
+    const outer = [null, JSON.stringify(inner)];
 
-        if (result.text) {
-          console.log(`[v0] [GeminiService] Success with model: ${modelId}`);
-          return result.text;
-        }
-      } catch (error) {
-        console.log(`[v0] [GeminiService] Model ${modelId} failed:`, error);
-        lastError = error instanceof Error ? error : new Error(String(error));
-        // Continue to next model
-      }
-    }
+    const params = querystring.stringify({
+      'f.req': JSON.stringify(outer),
+    });
 
-    throw lastError || new Error('All Gemini models failed');
+    return params + '&';
   }
 
   /**
-   * Ask Gemini a question using AI SDK
+   * Parse Gemini response stream
    */
-  async ask(prompt: string, systemPrompt?: string): Promise<GeminiResponse> {
+  private parseResponse(text: string): string {
+    text = text.replace(/\)\]'/, '');
+    let best = '';
+
+    for (const line of text.split('\n')) {
+      if (!line.includes('wrb.fr')) {
+        continue;
+      }
+
+      try {
+        const data = JSON.parse(line);
+        const entries: any[] = [];
+
+        if (Array.isArray(data)) {
+          if (data[0] === 'wrb.fr') {
+            entries.push(data);
+          } else {
+            const filtered = data.filter(
+              (i: any) =>
+                Array.isArray(i) && i[0] === 'wrb.fr'
+            );
+            entries.push(...filtered);
+          }
+        }
+
+        for (const entry of entries) {
+          try {
+            const inner = JSON.parse(entry[2]);
+
+            if (
+              Array.isArray(inner) &&
+              Array.isArray(inner[4])
+            ) {
+              for (const c of inner[4]) {
+                if (Array.isArray(c) && Array.isArray(c[1])) {
+                  const txt = c[1]
+                    .filter((t: any) => typeof t === 'string')
+                    .join('');
+
+                  if (txt.length > best.length) {
+                    best = txt;
+                  }
+                }
+              }
+            }
+          } catch {
+            // Continue parsing other entries
+          }
+        }
+      } catch {
+        // Continue to next line
+      }
+    }
+
+    return best.trim();
+  }
+
+  /**
+   * Send request to Gemini with retry logic
+   */
+  private async sendRequest(payload: string): Promise<string> {
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+        const response = await fetch(this.baseUrl, {
+          method: 'POST',
+          headers: {
+            'accept': '*/*',
+            'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'x-same-domain': '1',
+            'user-agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+          body: payload,
+          signal: controller.signal as AbortSignal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return await response.text();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Wait before retry
+        if (attempt < maxRetries - 1) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * (attempt + 1))
+          );
+        }
+      }
+    }
+
+    throw lastError || new Error('Failed to connect to Gemini');
+  }
+
+  /**
+   * Ask Gemini a question
+   */
+  async ask(prompt: string): Promise<GeminiResponse> {
     try {
       // Add to history
       this.conversationHistory.history.push({
@@ -83,17 +181,14 @@ class GeminiService {
         content: prompt,
       });
 
-      // Build messages from history
-      const messages = this.conversationHistory.history.map((msg) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      }));
+      // Build and send request
+      const payload = this.buildPayload(prompt);
+      const responseText = await this.sendRequest(payload);
+      const text = this.parseResponse(responseText);
 
-      // Use Vercel AI Gateway with Gemini (with fallback)
-      const text = await this.tryGenerateText(
-        messages,
-        systemPrompt || 'You are a helpful AI assistant. Be concise and accurate.'
-      );
+      if (!text) {
+        throw new Error('Empty response from Gemini');
+      }
 
       // Add response to history
       this.conversationHistory.history.push({
@@ -107,8 +202,8 @@ class GeminiService {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[GeminiService] Error:', errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       return {
         success: false,
@@ -120,56 +215,7 @@ class GeminiService {
   }
 
   /**
-   * Ask with streaming support
-   */
-  async askStream(
-    prompt: string,
-    onChunk: (chunk: string) => void,
-    systemPrompt?: string
-  ): Promise<GeminiResponse> {
-    try {
-      this.conversationHistory.history.push({
-        role: 'user',
-        content: prompt,
-      });
-
-      const messages = this.conversationHistory.history.map((msg) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      }));
-
-      // Use fallback chain
-      const text = await this.tryGenerateText(
-        messages,
-        systemPrompt || 'You are a helpful AI assistant. Be concise and accurate.'
-      );
-      
-      onChunk(text);
-
-      this.conversationHistory.history.push({
-        role: 'assistant',
-        content: text,
-      });
-
-      return {
-        success: true,
-        text,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      return {
-        success: false,
-        text: '',
-        error: errorMessage,
-        timestamp: new Date().toISOString(),
-      };
-    }
-  }
-
-  /**
-   * Get conversation context
+   * Get conversation context with optional summary
    */
   getContext(): ConversationContext {
     return {
