@@ -94,7 +94,7 @@ export default function ClaudePage() {
           <p className="text-lg text-slate-400">True Claude-like behavior with ReAct reasoning</p>
           <div className="mt-4 flex gap-3">
             <Link href="/" className="text-sm text-blue-400 hover:text-blue-300">
-              ← Back to Dashboard
+              Back to Dashboard
             </Link>
           </div>
         </div>
@@ -127,9 +127,9 @@ export default function ClaudePage() {
                   <div className="space-y-2 text-left max-w-md mx-auto">
                     <p className="text-sm text-slate-500">Example questions:</p>
                     <ul className="text-sm text-slate-400 space-y-1">
-                      <li>• "What is the capital of France and its population?"</li>
-                      <li>• "Analyze this code for performance issues"</li>
-                      <li>• "Search for latest AI trends and summarize"</li>
+                      <li>What is the capital of France and its population?</li>
+                      <li>Analyze this code for performance issues</li>
+                      <li>Search for latest AI trends and summarize</li>
                     </ul>
                   </div>
                 </div>
@@ -149,7 +149,7 @@ export default function ClaudePage() {
                     ) : (
                       <div className="space-y-3">
                         <p className="text-white font-semibold">
-                          {msg.content.success ? '✓ Claude Agent' : '✗ Error'}
+                          {msg.content.success ? 'Claude Agent' : 'Error'}
                         </p>
                         <p className="whitespace-pre-wrap">{msg.content.message}</p>
 
@@ -160,7 +160,7 @@ export default function ClaudePage() {
                               onClick={() => setShowThinking(!showThinking)}
                               className="text-sm text-slate-300 hover:text-slate-100 font-semibold"
                             >
-                              {showThinking ? '▼ Hide Thinking' : '▶ Show Thinking Process'}
+                              {showThinking ? 'Hide Thinking' : 'Show Thinking Process'}
                             </button>
 
                             {showThinking && (
@@ -188,12 +188,12 @@ export default function ClaudePage() {
                         {/* Metrics */}
                         {msg.content.metrics && (
                           <div className="mt-3 text-xs text-slate-400 space-y-1">
-                            <p>⏱️ {msg.content.metrics.executionTime}ms</p>
+                            <p>Time: {msg.content.metrics.executionTime}ms</p>
                             {msg.content.metrics.toolsUsed.length > 0 && (
-                              <p>🔧 Tools: {msg.content.metrics.toolsUsed.join(', ')}</p>
+                              <p>Tools: {msg.content.metrics.toolsUsed.join(', ')}</p>
                             )}
                             {msg.content.metrics.selfCorrected && (
-                              <p>🔄 Self-corrected after {msg.content.metrics.iterationCount} iteration(s)</p>
+                              <p>Self-corrected after {msg.content.metrics.iterationCount} iteration(s)</p>
                             )}
                           </div>
                         )}
@@ -233,10 +233,10 @@ export default function ClaudePage() {
           <div className="bg-slate-700 bg-opacity-50 border border-slate-600 rounded-lg p-4">
             <h3 className="text-white font-semibold mb-3">Features</h3>
             <ul className="text-sm text-slate-300 space-y-2">
-              <li>✓ Structured thinking with <thinking> stages</li>
-              <li>✓ Multi-tool orchestration</li>
-              <li>✓ Automatic self-correction</li>
-              <li>✓ Full conversation history</li>
+              <li>Structured thinking with thinking stages</li>
+              <li>Multi-tool orchestration</li>
+              <li>Automatic self-correction</li>
+              <li>Full conversation history</li>
             </ul>
           </div>
           <div className="bg-slate-700 bg-opacity-50 border border-slate-600 rounded-lg p-4">
