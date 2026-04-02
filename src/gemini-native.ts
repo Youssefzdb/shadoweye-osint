@@ -8,10 +8,11 @@
 const URL =
   'https://gemini.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate';
 
-const HEADERS = {
+const HEADERS: Record<string, string> = {
   accept: '*/*',
   'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
   'x-same-domain': '1',
+  'cookie': '', // Empty cookie header as per original working implementation
 };
 
 interface GeminiNativeResponse {
