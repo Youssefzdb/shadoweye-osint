@@ -2,9 +2,11 @@
  * CCProxy Service - AI Request Translator
  * Translates Gemini requests to Claude format and ensures Claude-compatible responses
  * Acts as a unified proxy layer for AI model responses
+ * Supports both official Gemini API and web scraping fallback
  */
 
 import { geminiService, type GeminiResponse } from './gemini';
+import { geminiAPIService } from './gemini-api';
 
 interface ClaudeMessage {
   role: 'user' | 'assistant';
@@ -143,11 +145,59 @@ class CCProxyService {
       // Update conversation history with new messages
       this.conversationHistory.push(...request.messages);
 
-      // Translate request to Gemini format
+      // Try official Gemini API first if configured
+      if (geminiAPIService.isConfigured()) {
+        const lastMessage = request.messages[request.messages.length - 1];
+        const apiResponse = await geminiAPIService.ask(lastMessage.content, {
+          temperature: this.normalizeTemperature(request.temperature),
+          maxTokens: request.maxTokens,
+          systemPrompt: request.systemPrompt,
+        });
+
+        if (apiResponse.success) {
+          // Format official API response to Claude format
+          const claudeResponse: ClaudeResponse = {
+            id: `gemini-${Date.now()}`,
+            type: 'message',
+            role: 'assistant',
+            content: [
+              {
+                type: 'text',
+                text: apiResponse.text,
+              },
+            ],
+            model: request.model || 'gemini-2.0-flash',
+            stop_reason: 'end_turn',
+            usage: {
+              input_tokens: apiResponse.tokens?.prompt || 0,
+              output_tokens: apiResponse.tokens?.completion || 0,
+            },
+            timestamp: new Date().toISOString(),
+            originalSource: 'gemini',
+          };
+
+          // Add response to history
+          this.conversationHistory.push({
+            role: 'assistant',
+            content: apiResponse.text,
+          });
+
+          return {
+            success: true,
+            data: claudeResponse,
+            timestamp: new Date().toISOString(),
+            source: 'gemini',
+          };
+        }
+        // Fall through to web scraping if API fails
+        console.warn('[CCProxy] Official API failed, falling back to web scraping');
+      }
+
+      // Fallback: Use web scraping method
       const geminiPrompt = this.translateRequestToGemini(request);
       const requestTokens = this.estimateTokens(geminiPrompt);
 
-      // Send to Gemini
+      // Send to Gemini via web scraping
       const geminiResponse = await geminiService.ask(geminiPrompt);
 
       if (!geminiResponse.success) {

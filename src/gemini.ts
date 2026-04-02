@@ -124,25 +124,43 @@ class GeminiService {
   }
 
   /**
-   * Send request to Gemini with retry logic
+   * Send request to Gemini with retry logic and rate limit handling
    */
   private async sendRequest(payload: string): Promise<string> {
-    const maxRetries = 3;
+    const maxRetries = 5;
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        const timeout = setTimeout(() => controller.abort(), 45000); // 45s timeout
+
+        // Randomize user agent to avoid detection
+        const userAgents = [
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        ];
+        const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
 
         const response = await fetch(this.baseUrl, {
           method: 'POST',
           headers: {
             'accept': '*/*',
+            'accept-language': 'en-US,en;q=0.9',
+            'accept-encoding': 'gzip, deflate, br',
             'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'origin': 'https://gemini.google.com',
+            'referer': 'https://gemini.google.com/',
+            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
             'x-same-domain': '1',
-            'user-agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'x-requested-with': 'XMLHttpRequest',
+            'user-agent': userAgent,
           },
           body: payload,
           signal: controller.signal as AbortSignal,
@@ -150,24 +168,49 @@ class GeminiService {
 
         clearTimeout(timeout);
 
+        // Handle rate limiting (429) with exponential backoff
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('retry-after');
+          const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, attempt) * 2000;
+          console.warn(`[Gemini] Rate limited (429). Retrying in ${waitTime}ms...`);
+          
+          if (attempt < maxRetries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, waitTime));
+            continue;
+          }
+          throw new Error(`HTTP 429 - Rate limited by Gemini`);
+        }
+
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(`HTTP ${response.status} - ${response.statusText}`);
         }
 
         return await response.text();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
-        // Wait before retry
-        if (attempt < maxRetries - 1) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * (attempt + 1))
-          );
+        // Only retry on specific errors
+        const shouldRetry = 
+          lastError.message.includes('429') ||
+          lastError.message.includes('timeout') ||
+          lastError.message.includes('ECONNRESET') ||
+          lastError.message.includes('ETIMEDOUT');
+
+        if (!shouldRetry || attempt === maxRetries - 1) {
+          break;
         }
+
+        // Exponential backoff with jitter
+        const baseWait = Math.pow(2, attempt) * 1000;
+        const jitter = Math.random() * 1000;
+        const waitTime = baseWait + jitter;
+        
+        console.warn(`[Gemini] Attempt ${attempt + 1} failed. Retrying in ${Math.round(waitTime)}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
     }
 
-    throw lastError || new Error('Failed to connect to Gemini');
+    throw lastError || new Error('Failed to connect to Gemini after maximum retries');
   }
 
   /**
