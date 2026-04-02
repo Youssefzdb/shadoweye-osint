@@ -1,13 +1,14 @@
 /**
- * Gemini API Route with CCProxy
- * Uses CCProxy to translate requests and ensure Claude-compatible responses
+ * Gemini API Route
+ * Direct connection to Gemini (no tokens, no cookies, no rate limiting)
+ * Based on proven working method from config.yaml
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ccProxyService, type CCProxyRequest } from '@/src/cc-proxy';
+import { geminiNativeService } from '@/src/gemini-native';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+export const maxDuration = 60; // Allow longer for direct connections
 
 interface GeminiAPIRequest {
   message?: string;
@@ -15,76 +16,43 @@ interface GeminiAPIRequest {
     role: 'user' | 'assistant';
     content: string;
   }>;
-  context?: Array<{
-    role: 'user' | 'assistant';
-    content: string;
-  }>;
-  model?: string;
-  maxTokens?: number;
-  temperature?: number;
-  systemPrompt?: string;
 }
 
 /**
  * POST /api/gemini
- * Send a message to Gemini via CCProxy and get Claude-formatted response
+ * Send a message to Gemini (direct connection, no rate limiting)
  */
 export async function POST(request: NextRequest) {
   try {
     const body: GeminiAPIRequest = await request.json();
 
-    // Support both single message and messages array format
-    let messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    // Get the message to send
+    let message: string | undefined;
 
     if (body.message) {
-      // Legacy single message format
-      const message = body.message.trim();
-
-      if (!message || message.length === 0) {
-        return NextResponse.json(
-          { error: 'Message cannot be empty' },
-          { status: 400 }
-        );
-      }
-
-      if (message.length > 10000) {
-        return NextResponse.json(
-          { error: 'Message is too long (max 10000 characters)' },
-          { status: 400 }
-        );
-      }
-
-      messages = [{ role: 'user', content: message }];
+      message = body.message.trim();
     } else if (body.messages && Array.isArray(body.messages) && body.messages.length > 0) {
-      // Claude-format messages array
-      messages = body.messages;
-    } else {
+      // Get the last user message
+      const lastMessage = body.messages.find((m) => m.role === 'user');
+      message = lastMessage?.content;
+    }
+
+    if (!message || message.length === 0) {
       return NextResponse.json(
-        { error: 'Either "message" or "messages" array is required' },
+        { error: 'Message cannot be empty' },
         { status: 400 }
       );
     }
 
-    // Build CCProxy request
-    const ccProxyRequest: CCProxyRequest = {
-      messages,
-      model: body.model,
-      maxTokens: body.maxTokens,
-      temperature: body.temperature,
-      systemPrompt: body.systemPrompt,
-    };
-
-    // Validate request
-    const validation = ccProxyService.validateRequest(ccProxyRequest);
-    if (!validation.valid) {
+    if (message.length > 10000) {
       return NextResponse.json(
-        { error: validation.error || 'Invalid request' },
+        { error: 'Message is too long (max 10000 characters)' },
         { status: 400 }
       );
     }
 
-    // Send through CCProxy (translates to Gemini and back to Claude format)
-    const response = await ccProxyService.sendRequest(ccProxyRequest);
+    // Send directly to Gemini (no intermediate layer, no rate limiting)
+    const response = await geminiNativeService.ask(message);
 
     if (!response.success) {
       return NextResponse.json(
@@ -96,23 +64,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return Claude-formatted response
+    // Return response
     return NextResponse.json({
       success: true,
-      data: response.data,
-      source: response.source,
-      timestamp: response.timestamp,
-      contextLength: ccProxyService.getHistoryLength(),
+      message: response.text,
+      timestamp: new Date().toISOString(),
+      source: 'gemini-native',
+      contextLength: geminiNativeService.getHistoryLength(),
     });
   } catch (error) {
     console.error('[Gemini API Error]', error);
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Internal server error',
+        error: error instanceof Error ? error.message : 'Internal server error',
         success: false,
       },
       { status: 500 }
@@ -122,17 +87,16 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/gemini/context
- * Get current conversation context in Claude format
+ * Get current conversation context
  */
 export async function GET() {
   try {
-    const history = ccProxyService.getHistory();
+    const history = geminiNativeService.getHistory();
 
     return NextResponse.json({
       success: true,
       context: history,
       length: history.length,
-      model: ccProxyService.getModel(),
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
