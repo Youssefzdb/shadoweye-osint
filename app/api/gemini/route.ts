@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { geminiService } from '@/src/gemini';
+import { ccproxyService } from '@/src/ccproxy';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -50,11 +50,11 @@ export async function POST(request: NextRequest) {
 
     // If context is provided, set it
     if (body.context && Array.isArray(body.context)) {
-      geminiService.setHistory(body.context);
+      ccproxyService.setHistory(body.context);
     }
 
     // Send to Gemini
-    const response = await geminiService.ask(message);
+    const response = await ccproxyService.ask(message);
 
     if (!response.success) {
       return NextResponse.json(
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: response.text,
       timestamp: response.timestamp,
-      contextLength: geminiService.getHistoryLength(),
+      contextLength: ccproxyService.getHistoryLength(),
     });
   } catch (error) {
     console.error('[Gemini API Error]', error);
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const context = geminiService.getContext();
+    const context = ccproxyService.getContext();
 
     return NextResponse.json({
       success: true,

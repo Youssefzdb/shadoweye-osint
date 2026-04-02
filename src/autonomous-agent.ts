@@ -4,7 +4,7 @@
  * Real-time action execution, error correction, and self-improvement
  */
 
-import { geminiService, type GeminiResponse } from './gemini';
+import { ccproxyService, type CCProxyResponse } from './ccproxy';
 import type { ModelRegistry } from './models';
 import type { ToolRegistry } from './tools';
 import type { CommandRegistry } from './commands';
@@ -138,7 +138,7 @@ Think like Claude Code - execute immediately without asking.
     `;
 
     try {
-      const response = await geminiService.ask(planningPrompt);
+      const response = await ccproxyService.ask(planningPrompt);
       if (!response.success) {
         throw new Error('Failed to create plan');
       }
@@ -312,7 +312,7 @@ Think like Claude Code - execute immediately without asking.
 
     console.log(`[Model] Using ${modelId} for:`, prompt.substring(0, 50));
     
-    const response = await geminiService.ask(prompt);
+    const response = await ccproxyService.ask(prompt);
     if (!response.success) {
       throw new Error(response.error || 'Model execution failed');
     }
@@ -368,7 +368,7 @@ ${successResults
 Synthesize this into a clear, actionable response.
     `;
 
-    const response = await geminiService.ask(responsePrompt);
+    const response = await ccproxyService.ask(responsePrompt);
     return response.success ? response.text : 'Execution completed but synthesis failed.';
   }
 
@@ -385,7 +385,7 @@ Despite errors, provide the best possible response you can generate directly.
 Be helpful and work around any issues.
     `;
 
-    const response = await geminiService.ask(recoveryPrompt);
+    const response = await ccproxyService.ask(recoveryPrompt);
     return response.success
       ? response.text
       : 'Unable to process request. Please try again.';

@@ -3,7 +3,7 @@
  * Implements Reasoning + Acting for intelligent problem solving
  */
 
-import { geminiService, type GeminiResponse } from './gemini';
+import { ccproxyService, type CCProxyResponse } from './ccproxy';
 import type { ModelRegistry } from './models';
 import type { ToolRegistry } from './tools';
 import type { CommandRegistry } from './commands';
@@ -153,7 +153,7 @@ export class ClaudeAgent {
         toolsUsed,
         executionTime,
         metadata: {
-          model: 'gemini-pro',
+          model: ccproxyService.getModel(),
           autonomyLevel: 'full',
           selfCorrected,
           iterationCount,
@@ -169,7 +169,7 @@ export class ClaudeAgent {
         toolsUsed,
         executionTime,
         metadata: {
-          model: 'gemini-pro',
+          model: ccproxyService.getModel(),
           autonomyLevel: 'full',
           selfCorrected,
           iterationCount,
@@ -188,7 +188,7 @@ What is the user trying to accomplish? What are the key requirements?
 Think step-by-step about the best approach.
 Be concise but thorough.`;
 
-    const response = await geminiService.ask(prompt);
+    const response = await ccproxyService.ask(prompt);
     return response.success ? response.text : 'Analysis failed';
   }
 
@@ -212,7 +212,7 @@ Available commands: ${availableCommands.join(', ')}
 Which tools and commands would be most useful?
 Return as JSON: { "tools": [...], "commands": [...] }`;
 
-    const response = await geminiService.ask(prompt);
+    const response = await ccproxyService.ask(prompt);
 
     try {
       if (response.success) {
@@ -286,7 +286,7 @@ ${results}
 What do these results tell us? Do they answer the original request?
 Are there any issues or gaps?`;
 
-    const response = await geminiService.ask(prompt);
+    const response = await ccproxyService.ask(prompt);
     return response.success ? response.text : 'Analysis incomplete';
   }
 
@@ -319,7 +319,7 @@ Observation: ${observation}
 How should we correct this? What additional steps are needed?
 Provide a detailed correction or improvement.`;
 
-    const response = await geminiService.ask(prompt);
+    const response = await ccproxyService.ask(prompt);
     return response.success
       ? `${previousResult}\n\n[CORRECTION]\n${response.text}`
       : previousResult;
@@ -355,7 +355,7 @@ Provide a comprehensive, helpful Claude-style response that:
 4. Uses clean formatting
 5. Is concise but thorough`;
 
-    const response = await geminiService.ask(prompt);
+    const response = await ccproxyService.ask(prompt);
     return response.success
       ? response.text
       : 'I encountered an error processing your request. Please try again.';

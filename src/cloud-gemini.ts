@@ -4,7 +4,7 @@
  * Creates a unified AI system with Cloud's architecture and Gemini's capabilities
  */
 
-import { geminiService, type GeminiResponse } from './gemini';
+import { ccproxyService, type CCProxyResponse } from './ccproxy';
 import type { ModelRegistry } from './models';
 import type { ToolRegistry } from './tools';
 import type { CommandRegistry } from './commands';
@@ -190,7 +190,7 @@ Always mention which tools/commands/models you're using.
       const enhancedPrompt = this.enhancePrompt(prompt);
 
       // Send to Gemini
-      const geminiResponse = await geminiService.ask(enhancedPrompt);
+      const ccproxyResponse = await ccproxyService.ask(enhancedPrompt);
 
       if (!geminiResponse.success) {
         throw new Error(geminiResponse.error || 'Gemini request failed');
