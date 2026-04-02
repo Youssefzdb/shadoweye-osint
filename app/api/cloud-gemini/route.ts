@@ -1,29 +1,67 @@
 /**
- * CloudGemini API Route
+ * CloudGemini API Route with CCProxy
  * Endpoint: POST/GET /api/cloud-gemini
  * Direct access to Gemini with full Cloud power (tools, commands, models)
+ * Uses CCProxy to ensure Claude-compatible request/response format
  */
 
 import { engine } from '@/src/index';
+import { ccProxyService, type CCProxyRequest } from '@/src/cc-proxy';
 
 export async function POST(request: Request) {
   try {
-    const { message, includeStatus = false } = await request.json();
+    const body = await request.json();
+    const { message, messages, includeStatus = false, model, maxTokens, temperature, systemPrompt } = body;
 
-    if (!message || typeof message !== 'string') {
+    // Support both single message and messages array format
+    let messageArray: Array<{ role: 'user' | 'assistant'; content: string }>;
+
+    if (message && typeof message === 'string') {
+      messageArray = [{ role: 'user', content: message }];
+    } else if (messages && Array.isArray(messages) && messages.length > 0) {
+      messageArray = messages;
+    } else {
       return Response.json(
-        { error: 'Invalid message: string required' },
+        { error: 'Either "message" or "messages" array is required' },
         { status: 400 }
       );
     }
 
-    // Query with CloudGemini
-    const result = await engine.query(message);
+    // Build CCProxy request for translation
+    const ccProxyRequest: CCProxyRequest = {
+      messages: messageArray,
+      model: model || 'gemini-pro',
+      maxTokens,
+      temperature,
+      systemPrompt,
+    };
+
+    // Validate request through CCProxy
+    const validation = ccProxyService.validateRequest(ccProxyRequest);
+    if (!validation.valid) {
+      return Response.json(
+        { error: validation.error || 'Invalid request' },
+        { status: 400 }
+      );
+    }
+
+    // Query with CloudGemini using CCProxy-translated format
+    const result = await engine.query(messageArray[messageArray.length - 1].content);
+
+    // Transform response through CCProxy for Claude-compatible format
+    const ccProxyResponse = await ccProxyService.sendRequest(ccProxyRequest);
 
     const response: any = {
       success: true,
       message: result.output,
+      claudeFormat: ccProxyResponse.data,
       timestamp: result.metadata.timestamp,
+      source: 'gemini',
+      proxyTranslation: {
+        originalFormat: 'claude',
+        translatedVia: 'ccproxy',
+        responseFormat: 'claude-compatible',
+      },
     };
 
     // Include system status if requested
@@ -69,6 +107,13 @@ export async function GET() {
           commands: status.commands.count > 0,
           models: status.models.count > 0,
           gemini: true,
+          ccProxy: true,
+        },
+        proxyInfo: {
+          service: 'ccproxy',
+          functionality: 'claude-compatible-proxy',
+          sourceModel: 'gemini',
+          responseFormat: 'claude-api-compatible',
         },
       },
       { status: 200 }

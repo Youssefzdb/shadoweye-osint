@@ -1,6 +1,7 @@
 /**
  * Source Map - Cloud Integration Core
  * Main entry point for the source map system
+ * Integrated with CCProxy for Claude-compatible request/response format
  */
 
 import { initializeModels, ModelRegistry } from './models';
@@ -8,6 +9,7 @@ import { initializeTools, ToolRegistry } from './tools';
 import { initializeCommands, CommandRegistry } from './commands';
 import { QueryEngine } from './query-engine';
 import { ClaudeAgent } from './claude-agent';
+import { ccProxyService } from './cc-proxy';
 import type {
   Tool,
   Model,
@@ -17,6 +19,7 @@ import type {
   Message,
   SourceMap,
 } from './types';
+import type { CCProxyRequest, CCProxyResponse, ClaudeResponse } from './cc-proxy';
 
 /**
  * Initialize the complete Source Map system
@@ -50,6 +53,8 @@ export {
   CommandRegistry,
   QueryEngine,
   ClaudeAgent,
+  // CCProxy for Claude-compatible format
+  ccProxyService,
   // Types
   type Tool,
   type Model,
@@ -58,6 +63,9 @@ export {
   type QueryResult,
   type Message,
   type SourceMap,
+  type CCProxyRequest,
+  type CCProxyResponse,
+  type ClaudeResponse,
 };
 
 // Create default instance

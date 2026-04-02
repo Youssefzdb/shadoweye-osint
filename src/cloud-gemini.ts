@@ -1,10 +1,11 @@
 /**
- * Cloud-Gemini Integration
+ * Cloud-Gemini Integration with CCProxy
  * Combines Cloud's full power (models, tools, commands) with Gemini AI
+ * Uses CCProxy for request translation and Claude-compatible response format
  * Creates a unified AI system with Cloud's architecture and Gemini's capabilities
  */
 
-import { geminiService, type GeminiResponse } from './gemini';
+import { ccProxyService, type CCProxyResponse, type CCProxyRequest } from './cc-proxy';
 import type { ModelRegistry } from './models';
 import type { ToolRegistry } from './tools';
 import type { CommandRegistry } from './commands';
@@ -182,21 +183,34 @@ Always mention which tools/commands/models you're using.
   }
 
   /**
-   * Query with full Cloud power + Gemini
+   * Query with full Cloud power + Gemini (via CCProxy)
+   * CCProxy ensures Claude-compatible request/response format
    */
   async query(prompt: string): Promise<CloudGeminiResponse> {
     try {
       // Enhance prompt with Cloud context
       const enhancedPrompt = this.enhancePrompt(prompt);
 
-      // Send to Gemini
-      const geminiResponse = await geminiService.ask(enhancedPrompt);
+      // Build CCProxy request for translation
+      const ccProxyRequest: CCProxyRequest = {
+        messages: [{ role: 'user', content: enhancedPrompt }],
+        model: 'gemini-pro',
+        systemPrompt: 'You are CloudGemini - a powerful AI assistant with access to Cloud infrastructure.',
+      };
 
-      if (!geminiResponse.success) {
-        throw new Error(geminiResponse.error || 'Gemini request failed');
+      // Send through CCProxy (translates to Gemini format and converts response back to Claude format)
+      const ccProxyResponse = await ccProxyService.sendRequest(ccProxyRequest);
+
+      if (!ccProxyResponse.success) {
+        throw new Error(ccProxyResponse.error || 'CCProxy request failed');
       }
 
-      let response = geminiResponse.text;
+      const claudeResponse = ccProxyResponse.data;
+      if (!claudeResponse) {
+        throw new Error('No response data from CCProxy');
+      }
+
+      let response = claudeResponse.content[0]?.text || '';
 
       // Execute any tools Gemini references
       if (this.config.enableTools) {
