@@ -233,10 +233,10 @@ export default function ClaudePage() {
           <div className="bg-slate-700 bg-opacity-50 border border-slate-600 rounded-lg p-4">
             <h3 className="text-white font-semibold mb-3">Features</h3>
             <ul className="text-sm text-slate-300 space-y-2">
-              <li>✓ Structured thinking with <thinking> stages</li>
-              <li>✓ Multi-tool orchestration</li>
-              <li>✓ Automatic self-correction</li>
-              <li>✓ Full conversation history</li>
+              <li>{'✓ Structured thinking with <thinking> stages'}</li>
+              <li>{'✓ Multi-tool orchestration'}</li>
+              <li>{'✓ Automatic self-correction'}</li>
+              <li>{'✓ Full conversation history'}</li>
             </ul>
           </div>
           <div className="bg-slate-700 bg-opacity-50 border border-slate-600 rounded-lg p-4">
