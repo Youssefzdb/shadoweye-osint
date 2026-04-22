@@ -1,8 +1,8 @@
 __pycache__/
 *.pyc
-*.pyo
 output/
 *.log
 .env
 venv/
 results/
+*.html
