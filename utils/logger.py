@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 class Logger:
     def __init__(self, verbose=False):
         self.verbose = verbose
@@ -6,4 +7,4 @@ class Logger:
     def warning(self, m): print(f"\033[93m[!]\033[0m {m}")
     def error(self, m):   print(f"\033[91m[-]\033[0m {m}")
     def debug(self, m):
-        if self.verbose: print(f"[DEBUG] {m}")
+        if self.verbose:  print(f"\033[90m[D]\033[0m {m}")
