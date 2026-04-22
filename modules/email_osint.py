@@ -1,56 +1,51 @@
 #!/usr/bin/env python3
 """Email OSINT Module"""
-import re, socket
+import re
+import socket
+import smtplib
 
 class EmailOSINT:
-    def __init__(self, email, logger):
+    def __init__(self, email: str, logger):
         self.email = email
         self.logger = logger
+        self.results = {"email": email}
 
-    def _validate(self):
-        pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
-        return re.match(pattern, self.email) is not None
+    def validate_format(self) -> bool:
+        pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        valid = bool(re.match(pattern, self.email))
+        self.results["format_valid"] = valid
+        self.logger.success(f"Format: {valid if valid else invalid}")
+        return valid
 
-    def _extract_domain(self):
-        return self.email.split("@")[1]
+    def extract_domain(self) -> str:
+        domain = self.email.split("@")[1]
+        self.results["domain"] = domain
+        self.logger.info(f"Domain: {domain}")
+        return domain
 
-    def _mx_lookup(self, domain):
+    def check_mx(self, domain: str) -> list:
         try:
-            import subprocess
-            r = subprocess.run(["nslookup","-type=MX", domain], capture_output=True, text=True, timeout=5)
-            lines = [l for l in r.stdout.splitlines() if "mail exchanger" in l.lower()]
-            self.logger.success(f"MX Records ({domain}): {len(lines)} found")
-            for l in lines:
-                self.logger.info(f"  {l.strip()}")
+            import dns.resolver
+            mx = dns.resolver.resolve(domain, "MX")
+            records = [r.exchange.to_text() for r in mx]
+            self.results["mx_records"] = records
+            for r in records:
+                self.logger.success(f"MX: {r}")
+            return records
         except Exception as e:
             self.logger.warning(f"MX lookup failed: {e}")
+            return []
 
-    def _check_disposable(self, domain):
-        disposable = ["mailinator.com","guerrillamail.com","tempmail.com","throwam.com","yopmail.com"]
-        if domain in disposable:
-            self.logger.warning(f"⚠️  {domain} is a known DISPOSABLE email provider!")
-        else:
-            self.logger.info(f"[OK] {domain} is not a known disposable provider")
-
-    def _smtp_verify(self, domain):
+    def smtp_verify(self, domain: str) -> bool:
+        self.logger.info(f"[*] SMTP verification for {self.email}...")
         try:
-            ip = socket.gethostbyname(domain)
-            sock = socket.socket()
-            sock.settimeout(3)
-            sock.connect((ip, 25))
-            banner = sock.recv(1024).decode(errors="ignore")
-            sock.close()
-            self.logger.success(f"SMTP Banner: {banner[:80].strip()}")
-        except Exception as e:
-            self.logger.warning(f"SMTP check failed: {e}")
-
-    def run(self):
-        self.logger.info(f"[*] Email OSINT: {self.email}")
-        if not self._validate():
-            self.logger.error("Invalid email format"); return
-        domain = self._extract_domain()
-        self.logger.success(f"Format valid ✓ | Domain: {domain}")
-        self._check_disposable(domain)
-        self._mx_lookup(domain)
-        self._smtp_verify(domain)
-        self.logger.info("[*] Done.")
+            mx_host = socket.gethostbyname(domain)
+            server = smtplib.SMTP(timeout=10)
+            server.connect(mx_host)
+            server.helo("shadoweye.local")
+            server.mail("test@shadoweye.local")
+            code, msg = server.rcpt(self.email)
+            server.quit()
+            exists = code == 250
+            self.results["smtp_exists"] = exists
+            self.logger.success(f"SMTP verify: {exists if exists else not
