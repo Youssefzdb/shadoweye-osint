@@ -1,35 +1,48 @@
-# v0-claw-code-gemini
+# ShadowEye — OSINT Intelligence Framework
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+> Open Source Intelligence gathering and target reconnaissance tool
 
-## Built with v0
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue) ![Next.js](https://img.shields.io/badge/Next.js-14+-black) ![License](https://img.shields.io/badge/License-MIT-green)
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+## Overview
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_l15YmGeagfxPBtyOAezDbFTH3BkE)
+ShadowEye is a web-based OSINT framework built for security researchers and penetration testers. It aggregates data from multiple public sources to build comprehensive intelligence profiles on domains, IPs, emails, and individuals.
 
-## Getting Started
+## Features
 
-First, run the development server:
+- 🌐 **Domain Recon** — WHOIS, DNS records, subdomains enumeration
+- 📧 **Email OSINT** — Breach detection, account discovery
+- 🗺️ **IP Intelligence** — Geolocation, ASN, open ports, threat score
+- 👤 **Person Search** — Social media footprint analysis
+- 📸 **Metadata Extraction** — Image & document metadata analysis
+- 🔗 **Link Graph** — Visual relationship mapping between entities
+
+## Installation
 
 ```bash
+git clone https://github.com/Youssefzdb/v0-claw-code-gemini
+cd v0-claw-code-gemini
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Usage
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Open `http://localhost:3000` and enter your target (domain, IP, email, or username).
 
-## Learn More
+## Modules
 
-To learn more, take a look at the following resources:
+| Module | Sources Used |
+|--------|--------------|
+| Domain | Shodan, VirusTotal, WHOIS |
+| Email | HaveIBeenPwned, Hunter.io |
+| IP | AbuseIPDB, Shodan, MaxMind |
+| Person | LinkedIn, Twitter, GitHub |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+## Disclaimer
 
-<a href="https://v0.app/chat/api/kiro/clone/plplgyt465-sys/v0-claw-code-gemini" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+> For authorized research and educational purposes only.
+
+## Author
+
+**Shadow Core** — OSINT Specialist | Cybersecurity Researcher
