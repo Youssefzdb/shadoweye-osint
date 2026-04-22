@@ -1,37 +1,40 @@
 #!/usr/bin/env python3
 """WHOIS Lookup Module"""
-import subprocess
-import socket
-import re
+import subprocess, json, re
 
 class WhoisLookup:
-    def __init__(self, target: str, logger):
+    def __init__(self, target, logger):
         self.target = target
         self.logger = logger
 
-    def _parse_whois(self, raw: str) -> dict:
-        fields = {}
+    def parse_whois(self, raw):
+        result = {}
         patterns = {
             "registrar": r"Registrar:\s*(.+)",
-            "creation_date": r"Creation Date:\s*(.+)",
-            "expiry_date": r"Registry Expiry Date:\s*(.+)",
-            "name_servers": r"Name Server:\s*(.+)",
-            "registrant_country": r"Registrant Country:\s*(.+)",
+            "created": r"Creation Date:\s*(.+)",
+            "expires": r"Registry Expiry Date:\s*(.+)",
+            "updated": r"Updated Date:\s*(.+)",
             "status": r"Domain Status:\s*(.+)",
+            "name_servers": r"Name Server:\s*(.+)",
+            "org": r"Registrant Organization:\s*(.+)",
+            "country": r"Registrant Country:\s*(.+)",
         }
         for key, pattern in patterns.items():
-            match = re.search(pattern, raw, re.IGNORECASE)
-            if match:
-                fields[key] = match.group(1).strip()
-        return fields
+            matches = re.findall(pattern, raw, re.IGNORECASE)
+            if matches:
+                result[key] = matches[0].strip() if len(matches)==1 else [m.strip() for m in matches]
+        return result
 
-    def run(self) -> dict:
-        self.logger.info(f"[*] WHOIS lookup for {self.target}")
-        results = {"target": self.target}
+    def run(self):
+        self.logger.info(f"[WHOIS] Looking up {self.target}...")
         try:
-            proc = subprocess.run(["whois", self.target], capture_output=True, text=True, timeout=15)
-            raw = proc.stdout
-            parsed = self._parse_whois(raw)
-            results.update(parsed)
+            out = subprocess.run(["whois", self.target],
+                capture_output=True, text=True, timeout=15).stdout
+            parsed = self.parse_whois(out)
             for k, v in parsed.items():
-                self.logger.success(f"{k.replace(_,
+                self.logger.success(f"  {k}: {v}")
+            print(json.dumps(parsed, indent=2))
+            return parsed
+        except Exception as e:
+            self.logger.error(f"WHOIS failed: {e}")
+            return {}
