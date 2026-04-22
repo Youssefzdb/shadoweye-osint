@@ -5,55 +5,53 @@ Open Source Intelligence Gathering Tool
 Author: Shadow Core
 """
 import argparse, sys
-from modules.domain import DomainRecon
-from modules.person import PersonLookup
-from modules.ip import IPRecon
-from modules.email import EmailHunter
-from modules.report import OSINTReport
-from utils.banner import print_banner
+from modules.dns_enum import DNSEnum
+from modules.email_osint import EmailOSINT
+from modules.username_hunt import UsernameHunt
+from modules.ip_lookup import IPLookup
+from modules.web_recon import WebRecon
+from utils.banner import banner
 from utils.logger import Logger
 
 def main():
-    print_banner()
-    parser = argparse.ArgumentParser(description="ShadowEye — OSINT Intelligence Framework")
-    sub = parser.add_subparsers(dest="module")
+    banner()
+    p = argparse.ArgumentParser(description="ShadowEye OSINT Framework")
+    sub = p.add_subparsers(dest="module")
 
-    d = sub.add_parser("domain", help="Domain & DNS intelligence")
-    d.add_argument("--target", required=True, help="Target domain")
-    d.add_argument("--full", action="store_true", help="Full scan (subdomains + WHOIS + DNS)")
-
-    i = sub.add_parser("ip", help="IP Geolocation & Reputation")
-    i.add_argument("--target", required=True, help="Target IP")
+    d = sub.add_parser("dns", help="DNS Enumeration & Subdomain Discovery")
+    d.add_argument("--domain", required=True)
+    d.add_argument("--wordlist", default="wordlists/subdomains.txt")
 
     e = sub.add_parser("email", help="Email OSINT & Breach Check")
-    e.add_argument("--target", required=True, help="Target email")
+    e.add_argument("--email", required=True)
 
-    p = sub.add_parser("person", help="Person OSINT (username search)")
-    p.add_argument("--username", required=True)
+    u = sub.add_parser("user", help="Username Hunt across platforms")
+    u.add_argument("--username", required=True)
 
-    r = sub.add_parser("report", help="Generate OSINT report")
-    r.add_argument("--input", required=True)
-    r.add_argument("--output", default="osint_report.html")
+    i = sub.add_parser("ip", help="IP Geolocation & Threat Intel")
+    i.add_argument("--ip", required=True)
 
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    w = sub.add_parser("web", help="Web Recon & Tech Fingerprint")
+    w.add_argument("--url", required=True)
+
+    p.add_argument("--verbose", "-v", action="store_true")
+    args = p.parse_args()
 
     if not args.module:
-        parser.print_help()
-        sys.exit(0)
+        p.print_help(); sys.exit(0)
 
-    log = Logger(getattr(args, "verbose", False))
+    log = Logger(args.verbose if hasattr(args, "verbose") else False)
 
-    if args.module == "domain":
-        DomainRecon(args.target, args.full, log).run()
-    elif args.module == "ip":
-        IPRecon(args.target, log).run()
+    if args.module == "dns":
+        DNSEnum(args.domain, args.wordlist, log).run()
     elif args.module == "email":
-        EmailHunter(args.target, log).run()
-    elif args.module == "person":
-        PersonLookup(args.username, log).run()
-    elif args.module == "report":
-        OSINTReport(args.input, args.output, log).run()
+        EmailOSINT(args.email, log).run()
+    elif args.module == "user":
+        UsernameHunt(args.username, log).run()
+    elif args.module == "ip":
+        IPLookup(args.ip, log).run()
+    elif args.module == "web":
+        WebRecon(args.url, log).run()
 
 if __name__ == "__main__":
     main()
