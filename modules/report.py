@@ -1,39 +1,41 @@
 #!/usr/bin/env python3
 """OSINT Report Generator"""
-import json
 from datetime import datetime
 
-class ReportGenerator:
-    def __init__(self, input_file, output, logger):
-        self.input_file = input_file
-        self.output = output
-        self.logger = logger
+class OSINTReport:
+    def __init__(self, results):
+        self.results = results
 
-    def run(self):
-        try:
-            with open(self.input_file) as f:
-                data = json.load(f)
-        except Exception as e:
-            self.logger.error(f"Read failed: {e}"); return
+    def save(self, filename):
+        domain_html = ""
+        if "domain" in self.results:
+            d = self.results["domain"]
+            subs = "".join(f"<li>{s['subdomain']} -> {s['ip']}</li>" for s in d.get("subdomains", []))
+            domain_html = f"<div class='card'><h2>Domain: {d.get('target','')}</h2><p>DNS: {d.get('dns',{})}</p><ul>{subs}</ul></div>"
+
+        username_html = ""
+        if "username" in self.results:
+            rows = "".join(
+                f"<tr><td>{p['platform']}</td><td><a href='{p['url']}'>{p['url']}</a></td><td class='{'found' if p['status']=='FOUND' else ''}'>{p['status']}</td></tr>"
+                for p in self.results["username"]
+            )
+            username_html = f"<div class='card'><h2>Username Lookup</h2><table><tr><th>Platform</th><th>URL</th><th>Status</th></tr>{rows}</table></div>"
 
         html = f"""<!DOCTYPE html>
 <html><head><title>ShadowEye OSINT Report</title>
 <style>
-  body{{font-family:monospace;background:#0d1117;color:#c9d1d9;padding:2em}}
-  h1{{color:#58a6ff}} h2{{color:#8b949e;border-bottom:1px solid #21262d;padding-bottom:6px}}
-  pre{{background:#161b22;padding:1.2em;border-radius:8px;overflow-x:auto;color:#3fb950}}
-  .badge{{background:#21262d;border-radius:12px;padding:2px 10px;font-size:.8em;margin:2px}}
-  footer{{margin-top:2em;color:#484f58;font-size:.8em}}
+body{{font-family:Arial;background:#0d1117;color:#c9d1d9;padding:20px}}
+h1{{color:#58a6ff}} h2{{color:#79c0ff}}
+.card{{background:#161b22;border-radius:8px;padding:15px;margin:10px 0;border:1px solid #30363d}}
+table{{width:100%;border-collapse:collapse}} td,th{{padding:8px;border:1px solid #30363d}}
+th{{background:#21262d}} .found{{color:#3fb950}} a{{color:#58a6ff}}
 </style></head>
 <body>
-<h1>👁️ ShadowEye OSINT Report</h1>
-<p><span class="badge">Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</span>
-<span class="badge">Author: Shadow Core</span></p>
-<h2>Intelligence Data</h2>
-<pre>{json.dumps(data, indent=2)}</pre>
-<footer>ShadowEye v1.0 — For authorized security research only</footer>
+<h1>ShadowEye OSINT Report</h1>
+<p>{datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+{domain_html}
+{username_html}
 </body></html>"""
-
-        with open(self.output, "w") as f:
+        with open(filename, "w") as f:
             f.write(html)
-        self.logger.success(f"Report saved: {self.output}")
+        print(f"[+] Report: {filename}")
