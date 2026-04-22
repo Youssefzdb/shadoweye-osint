@@ -1,48 +1,33 @@
 # 👁️ ShadowEye OSINT Framework
 
-> Open Source Intelligence Gathering Tool
-
-![Python](https://img.shields.io/badge/Python-3.8+-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+> Open Source Intelligence Gathering Tool | by **Shadow Core**
 
 ## Features
-
-- 🌐 **Domain Recon** — DNS records, WHOIS, subdomain enumeration
-- 📍 **IP Intelligence** — Geolocation, reverse DNS, ISP info
-- 📧 **Email OSINT** — Validation, MX lookup, breach indicators
-- 👤 **Username Search** — 15+ platforms (GitHub, Twitter, Reddit, HackerOne...)
-- 📄 **Report Generator** — HTML reports
-
-## Installation
-
-```bash
-git clone https://github.com/Youssefzdb/shadoweye-osint
-cd shadoweye-osint
-pip install -r requirements.txt
-```
+- 🔍 **DNS Enumeration** — Subdomain discovery via brute force
+- 📧 **Email OSINT** — Validate, MX lookup, SMTP fingerprint
+- 👤 **Username Hunt** — Check 15+ platforms (GitHub, Twitter, TikTok...)
+- 🌐 **IP Intelligence** — GeoIP, ASN, Threat Intel, Reverse DNS
+- 🖥️  **Web Recon** — HTTP headers, tech fingerprinting (WordPress, React, Cloudflare...)
 
 ## Usage
-
 ```bash
-# Domain recon
-python3 main.py domain --target example.com --full
+pip install -r requirements.txt
 
-# IP intelligence
-python3 main.py ip --target 8.8.8.8
+# DNS Enumeration
+python main.py dns --domain example.com
+
+# Username Hunt
+python main.py user --username shadowcore
+
+# IP Intelligence
+python main.py ip --ip 8.8.8.8
 
 # Email OSINT
-python3 main.py email --target user@example.com
+python main.py email --email target@example.com
 
-# Username search across 15+ platforms
-python3 main.py person --username shadowcore
-
-# Generate HTML report
-python3 main.py report --input results.json --output report.html
+# Web Recon
+python main.py web --url https://example.com
 ```
 
-## Disclaimer
-
-> For authorized use only. Always obtain permission before targeting systems or individuals.
-
-## Author
-
-**Shadow Core** — Cybersecurity Specialist | OSINT Researcher
+## ⚠️ Disclaimer
+For authorized and educational use only.
