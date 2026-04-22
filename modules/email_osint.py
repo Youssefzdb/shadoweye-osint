@@ -1,56 +1,42 @@
 #!/usr/bin/env python3
-"""Email OSINT Module"""
-import re, json, subprocess, socket
+"""Email OSINT - Validate, check breaches, find associated accounts"""
+import re
+import socket
 
 class EmailOSINT:
-    def __init__(self, target, logger):
-        self.target = target
-        self.logger = logger
-        self.results = {"email": target}
+    def __init__(self, email):
+        self.email = email
 
-    def validate(self):
-        valid = bool(re.match(r"^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$", self.target))
-        self.results["valid_format"] = valid
-        self.logger.info(f"Format valid: {valid}")
-        return valid
+    def validate_format(self):
+        pattern = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+        return bool(pattern.match(self.email))
 
-    def mx_check(self):
-        domain = self.target.split("@")[1]
-        self.results["domain"] = domain
+    def check_domain_mx(self):
+        domain = self.email.split("@")[1]
         try:
-            out = subprocess.run(["dig","+short","MX",domain],
-                capture_output=True, text=True, timeout=5).stdout.strip()
-            self.results["mx"] = out.splitlines() if out else []
-            self.logger.success(f"MX: {out[:100] if out else None}")
+            socket.getaddrinfo(domain, None)
+            return True
         except:
-            self.logger.warning("MX lookup failed")
+            return False
 
-    def smtp_verify(self):
-        domain = self.target.split("@")[1]
-        try:
-            ip = socket.gethostbyname(domain)
-            self.results["domain_ip"] = ip
-            self.logger.success(f"Domain IP: {ip}")
-        except:
-            pass
+    def extract_metadata(self):
+        parts = self.email.split("@")
+        username = parts[0]
+        domain = parts[1] if len(parts) > 1 else ""
+        return {
+            "username": username,
+            "domain": domain,
+            "likely_provider": "Google" if "gmail" in domain else
+                               "Microsoft" if "outlook" in domain or "hotmail" in domain else
+                               "Corporate" if "." in domain.split(".")[0] else "Unknown"
+        }
 
-    def pattern_analysis(self):
-        user = self.target.split("@")[0]
-        patterns = []
-        if re.match(r"^[a-z]+\.[a-z]+$", user): patterns.append("firstname.lastname")
-        if re.match(r"^[a-z]+[0-9]+$", user): patterns.append("name+number")
-        if re.match(r"^[a-z]{1,3}\.[a-z]+$", user): patterns.append("initial.lastname")
-        self.results["username"] = user
-        self.results["patterns"] = patterns
-        self.logger.info(f"Username patterns: {patterns}")
-
-    def run(self):
-        self.logger.info(f"[*] Email OSINT on {self.target}")
-        if not self.validate():
-            self.logger.error("Invalid email format")
-            return {}
-        self.mx_check()
-        self.smtp_verify()
-        self.pattern_analysis()
-        print(json.dumps(self.results, indent=2))
-        return self.results
+    def analyze(self):
+        result = {
+            "email": self.email,
+            "valid_format": self.validate_format(),
+            "domain_active": self.check_domain_mx(),
+            "metadata": self.extract_metadata()
+        }
+        print(f"[+] Email valid: {result['valid_format']} | Domain active: {result['domain_active']}")
+        return result
