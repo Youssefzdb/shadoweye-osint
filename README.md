@@ -1,65 +1,48 @@
 # 👁️ ShadowEye OSINT Framework
 
-> Open Source Intelligence Gathering & Reconnaissance Toolkit
+> Open Source Intelligence Gathering Tool
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.8+-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 
-```
-███████╗██╗  ██╗ █████╗ ██████╗  ██████╗ ██╗    ██╗    ███████╗██╗   ██╗███████╗
-██╔════╝██║  ██║██╔══██╗██╔══██╗██╔═══██╗██║    ██║    ██╔════╝╚██╗ ██╔╝██╔════╝
-███████╗███████║███████║██║  ██║██║   ██║██║ █╗ ██║    █████╗   ╚████╔╝ █████╗
-╚════██║██╔══██║██╔══██║██║  ██║██║   ██║██║███╗██║    ██╔══╝    ╚██╔╝  ██╔══╝
-███████║██║  ██║██║  ██║██████╔╝╚██████╔╝╚███╔███╔╝    ███████╗   ██║   ███████╗
-╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚══╝╚══╝    ╚══════╝   ╚═╝   ╚══════╝
-```
+## Features
 
-## 🔍 Modules
+- 🌐 **Domain Recon** — DNS records, WHOIS, subdomain enumeration
+- 📍 **IP Intelligence** — Geolocation, reverse DNS, ISP info
+- 📧 **Email OSINT** — Validation, MX lookup, breach indicators
+- 👤 **Username Search** — 15+ platforms (GitHub, Twitter, Reddit, HackerOne...)
+- 📄 **Report Generator** — HTML reports
 
-| Module | Description |
-|--------|-------------|
-| `dns` | DNS enumeration, zone transfer, subdomain discovery |
-| `whois` | WHOIS lookup & registrar info |
-| `email` | Email OSINT, breach check, header analysis |
-| `social` | Social media profile discovery |
-| `ip` | IP geolocation, ASN, reverse lookup |
-| `phone` | Phone number OSINT & carrier lookup |
-| `report` | Generate HTML/JSON reports |
-
-## 🚀 Installation
+## Installation
 
 ```bash
 git clone https://github.com/Youssefzdb/shadoweye-osint
 cd shadoweye-osint
 pip install -r requirements.txt
-python3 main.py --help
 ```
 
-## ⚡ Usage
+## Usage
 
 ```bash
-# DNS enumeration
-python3 main.py dns --target example.com --mode full
+# Domain recon
+python3 main.py domain --target example.com --full
 
-# WHOIS lookup
-python3 main.py whois --target example.com
+# IP intelligence
+python3 main.py ip --target 8.8.8.8
 
 # Email OSINT
 python3 main.py email --target user@example.com
 
-# IP intelligence
-python3 main.py ip --target 1.1.1.1
+# Username search across 15+ platforms
+python3 main.py person --username shadowcore
 
-# Phone OSINT
-python3 main.py phone --number +1234567890
-
-# Generate report
+# Generate HTML report
 python3 main.py report --input results.json --output report.html
 ```
 
-## ⚠️ Disclaimer
+## Disclaimer
 
-> For authorized security research and educational purposes only. Always comply with applicable laws.
+> For authorized use only. Always obtain permission before targeting systems or individuals.
 
-## 👤 Author
+## Author
 
-**Shadow Core** | Cybersecurity Researcher | OSINT Specialist
+**Shadow Core** — Cybersecurity Specialist | OSINT Researcher
