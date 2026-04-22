@@ -1,48 +1,26 @@
 #!/usr/bin/env python3
-"""DNS Enumeration & Subdomain Discovery"""
-import socket, threading
-from queue import Queue
+"""DNS Enumeration & Subdomain Discovery Module"""
+import socket
+import dns.resolver
+import dns.zone
+import dns.query
+
+COMMON_SUBDOMAINS = [
+    "www","mail","ftp","api","dev","staging","test","admin","portal",
+    "vpn","remote","smtp","pop","imap","ns1","ns2","cdn","blog","app",
+    "secure","login","auth","db","database","mx","backup","git","status"
+]
 
 class DNSEnum:
-    def __init__(self, domain, wordlist, logger):
-        self.domain = domain
-        self.wordlist = wordlist
+    def __init__(self, target: str, mode: str, logger):
+        self.target = target
+        self.mode = mode
         self.logger = logger
-        self.found = []
-        self.queue = Queue()
+        self.results = {"target": target, "subdomains": [], "records": {}}
 
-    def _load_wordlist(self):
-        defaults = ["www","mail","ftp","admin","api","dev","staging","vpn","remote",
-                    "portal","blog","shop","app","test","beta","cdn","ns1","ns2"]
+    def get_records(self, rtype: str):
         try:
-            with open(self.wordlist) as f:
-                return [l.strip() for l in f if l.strip()]
-        except:
-            self.logger.warning(f"Wordlist not found, using defaults ({len(defaults)} words)")
-            return defaults
-
-    def _resolve(self, sub):
-        host = f"{sub}.{self.domain}"
-        try:
-            ip = socket.gethostbyname(host)
-            self.found.append((host, ip))
-            self.logger.success(f"[FOUND] {host} -> {ip}")
-        except:
-            pass
-
-    def _worker(self):
-        while not self.queue.empty():
-            sub = self.queue.get()
-            self._resolve(sub)
-            self.queue.task_done()
-
-    def run(self):
-        self.logger.info(f"[*] DNS Enumeration: {self.domain}")
-        subs = self._load_wordlist()
-        for s in subs:
-            self.queue.put(s)
-        threads = [threading.Thread(target=self._worker) for _ in range(30)]
-        for t in threads: t.daemon=True; t.start()
-        self.queue.join()
-        self.logger.info(f"[*] Done. {len(self.found)} subdomains found.")
-        return self.found
+            answers = dns.resolver.resolve(self.target, rtype)
+            recs = [r.to_text() for r in answers]
+            self.results["records"][rtype] = recs
+            self.logger.success(f"{rtype}: {,
