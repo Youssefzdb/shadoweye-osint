@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-def print_banner():
+def banner():
     print("""
 \033[94m
 ███████╗██╗  ██╗ █████╗ ██████╗  ██████╗ ██╗    ██╗
@@ -7,8 +6,8 @@ def print_banner():
 ███████╗███████║███████║██║  ██║██║   ██║██║ █╗ ██║
 ╚════██║██╔══██║██╔══██║██║  ██║██║   ██║██║███╗██║
 ███████║██║  ██║██║  ██║██████╔╝╚██████╔╝╚███╔███╔╝
-╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚══╝╚══╝  👁️
+╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚══╝╚══╝
 \033[0m
-\033[94m  ShadowEye OSINT Framework v1.0 — by Shadow Core\033[0m
-\033[90m  domain | ip | email | person | report\033[0m
+\033[94m  ShadowEye OSINT v1.0 — by Shadow Core\033[0m
+\033[90m  Passive Intelligence. Active Vision.\033[0m
     """)
